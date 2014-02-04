@@ -38,9 +38,6 @@ def process_file(filename, lang='sk'):
                 'hodnoteniaPredmetu')
 
     map_metodyStudia = {u'prezenčná': 'P', u'dištančná': 'D', u'kombinovaná': 'K'}
-    map_druhCinnosti = {u'Kurz': 'K', u'Prednáška': 'P', u'Cvičenie': 'C',
-            u'Seminár': 'S', u'Laboratórne cvičenie': 'L', 'Prax': 'A', u'Iná':
-            'N', u'Samostatná práca': 'B'}
 
     data = []
 
@@ -116,7 +113,7 @@ def process_file(filename, lang='sk'):
             rozsahSemestranly = d['rozsahSemestranly'].split(' / ')
             for i in range(len(sposobVyucby)):
                 x = {
-                        'sposobVyucby': map_druhCinnosti[sposobVyucby[i]],
+                        'sposobVyucby': sposobVyucby[i],
                         'rozsahTyzdenny': rozsahTyzdenny[i],
                         'rozsahSemestranly': rozsahSemestranly[i]
                     }
