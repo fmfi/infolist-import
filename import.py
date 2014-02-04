@@ -123,8 +123,8 @@ def import2db(con, data):
             cur.execute('''INSERT INTO infolist_verzia (nazov_predmetu,
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
-                hodnotenia_e_pocet, hodnotenia_fx_pocet) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['nazov'],
                     d['vahaSkusky'],
@@ -134,13 +134,14 @@ def import2db(con, data):
                     d['hodnoteniaPredmetu']['D']['pocetHodnoteni'],
                     d['hodnoteniaPredmetu']['E']['pocetHodnoteni'],
                     d['hodnoteniaPredmetu']['FX']['pocetHodnoteni'],
+                    datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
                 ))
             infolist_verzia_id = cur.fetchone()[0]
 
             cur.execute('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
-                    strucna_osnova, potrebny_jazyk, modifikovane) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+                    strucna_osnova, potrebny_jazyk) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
                     (
                      infolist_verzia_id,
                      "sk",
@@ -149,7 +150,6 @@ def import2db(con, data):
                      d['_C_'],
                      d['_SO_'],
                      None,
-                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
                     ))
 
             for vyucujuci in d['vyucujuciAll']:
