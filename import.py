@@ -172,7 +172,7 @@ def import2db(con, data):
                 vyucujuci_id = ids[0]
 
                 cur.execute('''INSERT INTO infolist_verzia_vyucujuci
-                        (infolist_verzia, osoba_id, druh_cinnosti) VALUES (%s,
+                        (infolist_verzia, osoba, druh_cinnosti) VALUES (%s,
                         %s, %s)''',
                         (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
 
