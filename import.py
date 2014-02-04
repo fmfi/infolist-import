@@ -156,7 +156,7 @@ def import2db(con, data):
                 cur.execute('SELECT id FROM osoba WHERE cele_meno=%s',
                         (vyucujuci['plneMeno'], ))
                 ids = cur.fetchall()
-                if len(ids) > 0:
+                if len(ids) > 1:
                     print("Nasiel som duplikovany zaznam pre vyucujuceho %s na predmete %s"
                             % (vyucujuci['plneMeno'], d['kod']),
                           file=sys.stderr)
