@@ -201,7 +201,8 @@ def import2db(con, data):
 
 
 def main(filenames, lang='sk'):
-    conn_str = 'host=localhost dbname= user= password='
+    with open(os.path.expanduser('~/.akreditacia.conn'), 'r') as f:
+      conn_str = f.read()
     with closing(psycopg2.connect(conn_str)) as con:
         for f in filenames:
             print("Spracuvam subor '%s'..." % f)
