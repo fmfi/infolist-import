@@ -17,6 +17,9 @@ import psycopg2
 from contextlib import closing
 import datetime
 
+def warn(text):
+  sys.stderr.write(text.encode('UTF-8'))
+  sys.stderr.write('\n')
 
 def process_file(filename, lang='sk'):
     xmldoc = ET.parse(filename)
@@ -83,9 +86,9 @@ def process_file(filename, lang='sk'):
         # vaha hodnotenia
         if not d['_VH_']:
             d['vahaSkusky'] = None
-        elif not re.match('^\d+\s*/\s*\d+$', d['_VH_']):
+        elif not re.match('^\s*\d+\s*/\s*\d+\s*$', d['_VH_']):
             d['vahaSkusky'] = None
-            print('Nepodarilo sa sparsovat vahu skusky: %s' % d['_VH_'], file=sys.stderr)
+            warn(u'Nepodarilo sa sparsovat vahu skusky %s pre predmet %s' % (d['_VH_'], d['kod']))
         else:
             vahy = d['_VH_'].split('/')
             if len(vahy) != 2:
@@ -96,15 +99,15 @@ def process_file(filename, lang='sk'):
         d['sposoby'] = []
         parse_sposoby = True
         if not d['sposobVyucby']:
-            print('Nenasiel som sposob vyucby pre predmet %s.' % d['kod'], file=sys.stderr)
+            warn(u'Nenasiel som sposob vyucby pre predmet %s.' % d['kod'])
             parse_sposoby = False
         
         if not d['rozsahTyzdenny']:
-            print('Nenasiel som tyzdenny rozsah pre predmet %s.' % d['kod'], file=sys.stderr)
+            warn(u'Nenasiel som tyzdenny rozsah pre predmet %s.' % d['kod'])
             parse_sposoby = False
         
         if not d['rozsahSemestranly']:
-            print('Nenasiel som semestralny rozsah pre predmet %s.' % d['kod'], file=sys.stderr)
+            warn(u'Nenasiel som semestralny rozsah pre predmet %s.' % d['kod'])
             parse_sposoby = False
         
         if parse_sposoby:
@@ -132,7 +135,7 @@ def import2db(con, data):
                     (d['kod'],))
             is_duplicate = cur.fetchone() != None
             if is_duplicate:
-                print("Duplikovany zaznam pre predmet %s" % d['kod'], file=sys.stderr)
+                warn(u"Duplikovany zaznam pre predmet %s" % d['kod'])
                 continue
 
             cur.execute('''INSERT INTO infolist_verzia (nazov_predmetu,
@@ -174,14 +177,12 @@ def import2db(con, data):
                         (vyucujuci['plneMeno'], ))
                 ids = cur.fetchall()
                 if len(ids) > 1:
-                    print("Nasiel som duplikovany zaznam pre vyucujuceho %s na predmete %s"
-                            % (vyucujuci['plneMeno'], d['kod']),
-                          file=sys.stderr)
+                    warn(u"Nasiel som duplikovany zaznam pre vyucujuceho %s na predmete %s"
+                            % (vyucujuci['plneMeno'], d['kod']))
                     continue
                 elif len(ids) == 0:
-                    print("Nenasiel som ziadny zaznam pre vyucujuceho %s na predmete %s"
-                            % (vyucujuci['plneMeno'], d['kod']),
-                          file=sys.stderr)
+                    warn(u"Nenasiel som ziadny zaznam pre vyucujuceho %s na predmete %s"
+                            % (vyucujuci['plneMeno'], d['kod']))
                     continue
 
                 vyucujuci_id = ids[0]
