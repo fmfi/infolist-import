@@ -163,6 +163,8 @@ def import2db(con, data):
                      None,
                     ))
 
+            poradie = 1
+            vlozeny = set()
             for vyucujuci in d['vyucujuciAll']:
                 cur.execute('SELECT id FROM osoba WHERE cele_meno=%s',
                         (vyucujuci['plneMeno'], ))
@@ -179,10 +181,18 @@ def import2db(con, data):
                     continue
 
                 vyucujuci_id = ids[0]
-
-                cur.execute('''INSERT INTO infolist_verzia_vyucujuci
-                        (infolist_verzia, osoba, druh_cinnosti) VALUES (%s,
-                        %s, %s)''',
+                
+                if vyucujuci_id not in vlozeny:
+                    cur.execute('''INSERT INTO infolist_verzia_vyucujuci
+                            (infolist_verzia, poradie, osoba)
+                            VALUES (%s, %s, %s)''',
+                            (infolist_verzia_id, poradie, vyucujuci_id))
+                    vlozeny.add(vyucujuci_id)
+                    poradie += 1
+                
+                cur.execute('''INSERT INTO infolist_verzia_vyucujuci_typ
+                        (infolist_verzia, osoba, typ_vyucujuceho)
+                        VALUES (%s, %s, %s)''',
                         (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
 
             for sposob in d['sposoby']:
