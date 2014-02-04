@@ -83,9 +83,13 @@ def process_file(filename, lang='sk'):
         # vaha hodnotenia
         if not d['_VH_']:
             d['vahaSkusky'] = None
+        elif not re.match('^\d+\s*/\s*\d+$', d['_VH_']):
+            d['vahaSkusky'] = None
+            print('Nepodarilo sa sparsovat vahu skusky: %s' % d['_VH_'], file=sys.stderr)
         else:
             vahy = d['_VH_'].split('/')
-            assert(len(vahy) == 2)
+            if len(vahy) != 2:
+              raise AssertionError(u'{} {}'.format(d['kod'], vahy))
             d['vahaSkusky'] = vahy[1]
 
         # parsovanie sposobu vyucby
