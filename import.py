@@ -200,7 +200,6 @@ def import2db(con, data):
                         (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
 
             for sposob in d['sposoby']:
-                print(d['sposobVyucby'])
                 cur.execute('''INSERT INTO infolist_verzia_cinnosti
                 (infolist_verzia, metoda_vyucby, druh_cinnosti,
                 pocet_hodin_tyzdenne) VALUES (%s, %s, %s, %s)''',
