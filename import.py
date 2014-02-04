@@ -138,6 +138,13 @@ def import2db(con, data):
                 warn(u"Duplikovany zaznam pre predmet %s" % d['kod'])
                 continue
 
+            hodnotenia = {}
+            for hodn in ['A', 'B', 'C', 'D', 'E', 'FX']:
+              if 'hodnoteniaPredmetu' in d and hodn in d['hodnoteniaPredmetu']:
+                hodnotenia[hodn] = d['hodnoteniaPredmetu'][hodn]['pocetHodnoteni']
+              else:
+                hodnotenia[hodn] = None
+
             cur.execute('''INSERT INTO infolist_verzia (nazov_predmetu,
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
@@ -146,12 +153,12 @@ def import2db(con, data):
                 (
                     d['nazov'],
                     d['vahaSkusky'],
-                    d['hodnoteniaPredmetu']['A']['pocetHodnoteni'],
-                    d['hodnoteniaPredmetu']['B']['pocetHodnoteni'],
-                    d['hodnoteniaPredmetu']['C']['pocetHodnoteni'],
-                    d['hodnoteniaPredmetu']['D']['pocetHodnoteni'],
-                    d['hodnoteniaPredmetu']['E']['pocetHodnoteni'],
-                    d['hodnoteniaPredmetu']['FX']['pocetHodnoteni'],
+                    hodnotenia['A'],
+                    hodnotenia['B'],
+                    hodnotenia['C'],
+                    hodnotenia['D'],
+                    hodnotenia['E'],
+                    hodnotenia['FX'],
                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
                 ))
             infolist_verzia_id = cur.fetchone()[0]
