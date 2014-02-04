@@ -90,9 +90,20 @@ def process_file(filename, lang='sk'):
 
         # parsovanie sposobu vyucby
         d['sposoby'] = []
+        parse_sposoby = True
         if not d['sposobVyucby']:
             print('Nenasiel som sposob vyucby pre predmet %s.' % d['kod'], file=sys.stderr)
-        else:
+            parse_sposoby = False
+        
+        if not d['rozsahTyzdenny']:
+            print('Nenasiel som tyzdenny rozsah pre predmet %s.' % d['kod'], file=sys.stderr)
+            parse_sposoby = False
+        
+        if not d['rozsahSemestranly']:
+            print('Nenasiel som semestralny rozsah pre predmet %s.' % d['kod'], file=sys.stderr)
+            parse_sposoby = False
+        
+        if parse_sposoby:
             sposobVyucby = d['sposobVyucby'].split(' / ')
             rozsahTyzdenny = d['rozsahTyzdenny'].split(' / ')
             rozsahSemestranly = d['rozsahSemestranly'].split(' / ')
