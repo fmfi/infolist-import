@@ -113,7 +113,7 @@ def import2db(con, data):
     with closing(con.cursor()) as cur:
         for d in data:
             # checkni duplikaty
-            cur.execute('SELECT 1 FROM infolist_verzia WHERE kod_predmetu=%s',
+            cur.execute('SELECT 1 FROM predmet WHERE kod_predmetu=%s',
                     (d['kod'],))
             is_duplicate = cur.fetchone() != None
             if is_duplicate:
@@ -138,7 +138,7 @@ def import2db(con, data):
             infolist_verzia_id = cur.fetchone()[0]
 
             cur.execute('''INSERT INTO infolist_verzia_preklad
-                    (infolist_verzia, jazyk, podm_absol_priebezne,
+                    (infolist_verzia, jazyk_prekladu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
                     strucna_osnova, potrebny_jazyk, modifikovane) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
                     (
