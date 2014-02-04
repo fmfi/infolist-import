@@ -120,14 +120,12 @@ def import2db(con, data):
                 print("Duplikovany zaznam pre predmet %s" % d['kod'], file=sys.stderr)
                 continue
 
-            cur.execute('''INSERT INTO infolist_verzia (kod_predmetu,
-                skratka, nazov_predmetu, podm_absol_percenta_skuska, hodnotenia_a_pocet,
+            cur.execute('''INSERT INTO infolist_verzia (nazov_predmetu,
+                podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet) VALUES
-                (%s,%s, %s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
-                    d['kod'],
-                    d['skratka'],
                     d['nazov'],
                     d['vahaSkusky'],
                     d['hodnoteniaPredmetu']['A']['pocetHodnoteni'],
@@ -189,8 +187,17 @@ def import2db(con, data):
                 ))
 
             cur.execute('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
-                    zamknute) VALUES (%s, %s, %s)''',
+                    zamknute) VALUES (%s, %s, %s) RETURNING id''',
                     (infolist_verzia_id, True, False))
+            infolist_id = cur.fetchone()[0]
+            
+            cur.execute('''INSERT INTO predmet (kod_predmetu, skratka) VALUES (%s, %s)
+                        RETURNING id''',
+                        (d['kod'], d['skratka']))
+            predmet_id = cur.fetchone()[0]
+            
+            cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
+                           VALUES (%s, %s)''', (predmet_id, infolist_id))
 
 
 def main(filenames, lang='sk'):
