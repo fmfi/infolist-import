@@ -145,8 +145,9 @@ def import2db(con, data):
             cur.execute('''INSERT INTO infolist_verzia (
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
-                hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
+                pocet_kreditov) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -156,6 +157,7 @@ def import2db(con, data):
                     hodnotenia['E'],
                     hodnotenia['FX'],
                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
+                    d['kredit'],
                 ))
             infolist_verzia_id = cur.fetchone()[0]
 
