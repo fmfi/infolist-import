@@ -44,14 +44,50 @@ def warn(text):
   sys.stderr.write(text.encode('UTF-8'))
   sys.stderr.write('\n')
 
+def kod2skratka(kod):
+  return re.match(r'^[^/]+/(.+)/[^/]+$', kod).group(1)
+
+def parse_formula(s):
+  tokens = []
+  separators = '() ,'
+  newtoken = True
+  for c in s:
+    if c in separators:
+      newtoken = True
+      if c != ' ':
+        tokens.append(c)
+    else:
+      if newtoken:
+        tokens.append(c)
+      else:
+        tokens[-1] += c
+      newtoken = False
+  tokens2 = []
+  for token in tokens:
+    if token == ',':
+      tokens2.append('AND')
+    elif token == 'alebo':
+      tokens2.append('OR')
+    else:
+      tokens2.append(token)
+  num = 0
+  for token in tokens2:
+    if token == '(':
+      num += 1
+    elif token == ')':
+      num -= 1
+      if num < 0:
+        raise ValueError('Zle uzatvorkovany vyraz')
+  if num != 0:
+    raise ValueError('Zle uzatvorkovany vyraz')
+  return tokens2
+
 def process_file(filename, lang='sk'):
     xmldoc = ET.parse(filename)
     root = xmldoc.getroot()
     organizacnaJednotka = root.find('organizacnaJednotka').text
     ilisty = root.find('informacneListy')
-    print("Nasiel som %d informacnych listov." %
-            len(ilisty.findall('informacnyList')))
-
+    
     # elementy, ktore sa budu parsovat z XML-ka
     elements = ('kod', 'skratka', 'nazov', 'kredit', 'sposobUkoncenia', 'sposobVyucby',
                 'rozsahTyzdenny', 'rozsahSemestranly', 'obdobie', 'rokRocnikStudPlan',
@@ -164,6 +200,16 @@ def process_file(filename, lang='sk'):
                               'rozsahZaObdobie': za_obdobie
                           }
                       d['sposoby'].append(x)
+            
+            if d['podmienujucePredmety']:
+              d['podmienujucePredmety'] = parse_formula(d['podmienujucePredmety'])
+            else:
+              d['podmienujucePredmety'] = []
+            
+            if d['vylucujucePredmety']:
+              d['vylucujucePredmety'] = parse_formula(d['vylucujucePredmety'])
+            else:
+              d['vylucujucePredmety'] = []
 
         data.append(d)
 
@@ -171,6 +217,19 @@ def process_file(filename, lang='sk'):
 
 def import2db(con, data):
     """ import do cistej db"""
+    def vytvor_alebo_najdi_predmet(kod_predmetu, skratka=None):
+      with closing(con.cursor()) as cur:
+        if skratka == None:
+          skratka = kod2skratka(kod_predmetu)
+        cur.execute('''SELECT id FROM predmet WHERE kod_predmetu = %s''', (kod_predmetu,))
+        row = cur.fetchone()
+        if row:
+          return row[0]
+        else:
+          cur.execute('''INSERT INTO predmet (kod_predmetu, skratka) VALUES (%s, %s)
+                      RETURNING id''',
+                      (kod_predmetu, skratka))
+          return cur.fetchone()[0]
     with closing(con.cursor()) as cur:
         for d in data:
             # checkni duplikaty
@@ -187,13 +246,29 @@ def import2db(con, data):
                 hodnotenia[hodn] = d['hodnoteniaPredmetu'][hodn]['pocetHodnoteni']
               else:
                 hodnotenia[hodn] = None
-
+            
+            def prepare_formula(tokens):
+              idform = []
+              referenced = set()
+              for token in tokens:
+                if token in ('(', ')', 'AND', 'OR'):
+                  idform.append(token)
+                else:
+                  token_id = vytvor_alebo_najdi_predmet(token)
+                  referenced.add(token_id)
+                  idform.append(str(token_id))
+              return idform, referenced
+            
+            podm_s_idckami, podm_predmety = prepare_formula(d['podmienujucePredmety'])
+            vyluc_s_idckami, vyluc_predmety = prepare_formula(d['vylucujucePredmety'])
+            
             cur.execute('''INSERT INTO infolist_verzia (
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
-                pocet_kreditov, fakulta) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                pocet_kreditov, fakulta, podmienujuce_predmety,
+                vylucujuce_predmety) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -204,9 +279,17 @@ def import2db(con, data):
                     hodnotenia['FX'],
                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
                     d['kredit'],
-                    'FMFI'
+                    'FMFI',
+                    u' '.join(podm_s_idckami),
+                    u' '.join(vyluc_s_idckami),
                 ))
             infolist_verzia_id = cur.fetchone()[0]
+            
+            suvisiace_predmety = set.union(podm_predmety, vyluc_predmety)
+            for predmet_id in suvisiace_predmety:
+              cur.execute('''INSERT INTO infolist_verzia_suvisiace_predmety
+                (infolist_verzia, predmet) VALUES (%s, %s)''',
+                (infolist_verzia_id, predmet_id))
 
             cur.execute('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, nazov_predmetu, podm_absol_priebezne,
@@ -270,21 +353,16 @@ def import2db(con, data):
                     (infolist_verzia_id, True, False))
             infolist_id = cur.fetchone()[0]
             
-            cur.execute('''INSERT INTO predmet (kod_predmetu, skratka) VALUES (%s, %s)
-                        RETURNING id''',
-                        (d['kod'], d['skratka']))
-            predmet_id = cur.fetchone()[0]
+            predmet_id = vytvor_alebo_najdi_predmet(d['kod'], d['skratka'])
             
             cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
                            VALUES (%s, %s)''', (predmet_id, infolist_id))
-
 
 def main(filenames, lang='sk'):
     with open(os.path.expanduser('~/.akreditacia.conn'), 'r') as f:
       conn_str = f.read()
     with closing(psycopg2.connect(conn_str)) as con:
         for f in filenames:
-            print("Spracuvam subor '%s'..." % f)
             with context(subor=os.path.basename(f)):
                 data = process_file(f, lang=lang)
                 import2db(con, data)
