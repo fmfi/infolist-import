@@ -61,6 +61,10 @@ def process_file(filename, lang='sk'):
                 'hodnoteniaPredmetu')
 
     map_metodyStudia = {u'prezenčná': 'P', u'dištančná': 'D', u'kombinovaná': 'K'}
+    # vid ciselnik druh_cinnosti
+    map_sposobVyucby = {u'Prednáška': 'P', u'Cvičenie': 'C', u'Samostatná práca': 'D',
+      u'Kurz': 'K', u'Iná': 'I', u'Práce v teréne': 'T', u'Seminár': 'S',
+      u'Laboratórne cvičenie': 'L', u'Prax': 'X', u'sústredenie': 'U'}
 
     data = []
 
@@ -103,45 +107,63 @@ def process_file(filename, lang='sk'):
                     d[e] = il.find(e).text
             else:
                 d[e] = None
+        
+        with context(predmet=d['kod']):
+            # vaha hodnotenia
+            if not d['_VH_']:
+                d['vahaSkusky'] = None
+            elif not re.match('^\s*\d+\s*/\s*\d+\s*$', d['_VH_']):
+                d['vahaSkusky'] = None
+                warn(u'Nepodarilo sa sparsovat vahu skusky %s pre predmet %s' % (d['_VH_'], d['kod']))
+            else:
+                vahy = d['_VH_'].split('/')
+                if len(vahy) != 2:
+                  raise AssertionError(u'{} {}'.format(d['kod'], vahy))
+                d['vahaSkusky'] = vahy[1]
 
-        # vaha hodnotenia
-        if not d['_VH_']:
-            d['vahaSkusky'] = None
-        elif not re.match('^\s*\d+\s*/\s*\d+\s*$', d['_VH_']):
-            d['vahaSkusky'] = None
-            warn(u'Nepodarilo sa sparsovat vahu skusky %s pre predmet %s' % (d['_VH_'], d['kod']))
-        else:
-            vahy = d['_VH_'].split('/')
-            if len(vahy) != 2:
-              raise AssertionError(u'{} {}'.format(d['kod'], vahy))
-            d['vahaSkusky'] = vahy[1]
-
-        # parsovanie sposobu vyucby
-        d['sposoby'] = []
-        parse_sposoby = True
-        if not d['sposobVyucby']:
-            warn(u'Nenasiel som sposob vyucby pre predmet %s.' % d['kod'])
-            parse_sposoby = False
-        
-        if not d['rozsahTyzdenny']:
-            warn(u'Nenasiel som tyzdenny rozsah pre predmet %s.' % d['kod'])
-            parse_sposoby = False
-        
-        if not d['rozsahSemestranly']:
-            warn(u'Nenasiel som semestralny rozsah pre predmet %s.' % d['kod'])
-            parse_sposoby = False
-        
-        if parse_sposoby:
-            sposobVyucby = d['sposobVyucby'].split(' / ')
-            rozsahTyzdenny = d['rozsahTyzdenny'].split(' / ')
-            rozsahSemestranly = d['rozsahSemestranly'].split(' / ')
-            for i in range(len(sposobVyucby)):
-                x = {
-                        'sposobVyucby': sposobVyucby[i],
-                        'rozsahTyzdenny': rozsahTyzdenny[i],
-                        'rozsahSemestranly': rozsahSemestranly[i]
-                    }
-                d['sposoby'].append(x)
+            # parsovanie sposobu vyucby
+            d['sposoby'] = []
+            if not d['sposobVyucby']:
+                warn(u'Nenasiel som sposob vyucby pre predmet %s.' % d['kod'])
+            else:
+                sposobVyucby = d['sposobVyucby'].split(' / ')
+                if not d['rozsahTyzdenny']:
+                  rozsahTyzdenny = None
+                else:
+                  rozsahTyzdenny = d['rozsahTyzdenny'].split(' / ')
+                if not d['rozsahSemestranly']:
+                  rozsahSemestranly = None
+                else:
+                  rozsahSemestranly = d['rozsahSemestranly'].split(' / ')
+                if rozsahTyzdenny == None and rozsahSemestranly == None:
+                  warn(u'Nenasiel som rozsah pre predmet %s' % d['kod'])
+                else:
+                  if rozsahTyzdenny == None:
+                    rozsahTyzdenny = [None] * len(sposobVyucby)
+                  if rozsahSemestranly == None:
+                    rozsahSemestranly = [None] * len(sposobVyucby)
+                  for i in range(len(sposobVyucby)):
+                      if rozsahTyzdenny[i] != None:
+                        hodin = rozsahTyzdenny[i]
+                        za_obdobie = 'T'
+                      else:
+                        hodin = rozsahSemestranly[i]
+                        za_obdobie = 'S'
+                      if re.match('^\d+[st]$', hodin):
+                        warn(u'Pocet hodin %s je so suffixom, konvertujem' % hodin)
+                        za_obdobie = hodin[-1].upper()
+                        hodin = int(hodin[:-1])
+                      elif not re.match('^\d+$', hodin):
+                        warn(u'Pocet hodin "%s" nie je cislo, nahradzujem nulou' % hodin)
+                        hodin = 0
+                      else:
+                        hodin = int(hodin)
+                      x = {
+                              'sposobVyucby': map_sposobVyucby[sposobVyucby[i]],
+                              'rozsahHodin': hodin,
+                              'rozsahZaObdobie': za_obdobie
+                          }
+                      d['sposoby'].append(x)
 
         data.append(d)
 
@@ -170,8 +192,8 @@ def import2db(con, data):
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
-                pocet_kreditov) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                pocet_kreditov, fakulta) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -182,6 +204,7 @@ def import2db(con, data):
                     hodnotenia['FX'],
                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
                     d['kredit'],
+                    'FMFI'
                 ))
             infolist_verzia_id = cur.fetchone()[0]
 
@@ -233,12 +256,13 @@ def import2db(con, data):
             for sposob in d['sposoby']:
                 cur.execute('''INSERT INTO infolist_verzia_cinnosti
                 (infolist_verzia, metoda_vyucby, druh_cinnosti,
-                pocet_hodin_tyzdenne) VALUES (%s, %s, %s, %s)''',
+                pocet_hodin, za_obdobie) VALUES (%s, %s, %s, %s, %s)''',
                 (
                     infolist_verzia_id,
                     d['metodaStudia'],
                     sposob['sposobVyucby'],
-                    sposob['rozsahTyzdenny']
+                    sposob['rozsahHodin'],
+                    sposob['rozsahZaObdobie']
                 ))
 
             cur.execute('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
