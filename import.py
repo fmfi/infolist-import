@@ -8,7 +8,10 @@ Importne data z AIS exportu v XML formate do Posgre databazy.
 from __future__ import print_function
 
 from xml.dom import minidom
-import xml.etree.ElementTree as ET
+try:
+  from lxml import etree as ET
+except ImportError:
+  import xml.etree.ElementTree as ET
 import re
 import sys
 import glob
@@ -16,8 +19,28 @@ import os.path
 import psycopg2
 from contextlib import closing
 import datetime
+from contextlib import contextmanager
+
+_context = []
+
+def fmtcontext(d):
+  return u' '.join(u'{}={}'.format(k, d[k]) for k in d)
+
+@contextmanager
+def context(**kwargs):
+  _context.append(kwargs.copy())
+  try:
+    yield
+  except:
+    sys.stderr.write(fmtcontext(_context[-1]))
+    sys.stderr.write('\n')
+    raise
+  finally:
+    _context.pop()
 
 def warn(text):
+  sys.stderr.write(u' '.join(fmtcontext(x) for x in _context).encode('UTF-8'))
+  sys.stderr.write(': ')
   sys.stderr.write(text.encode('UTF-8'))
   sys.stderr.write('\n')
 
@@ -43,6 +66,7 @@ def process_file(filename, lang='sk'):
 
     # spracovanie informacnych listov jednotlivych predmetov
     for il in ilisty.findall('informacnyList'):
+      with context(line=getattr(il, 'sourceline', None)):
         d = {'lang' : lang, 'organizacnaJednotka': organizacnaJednotka}
         for e in elements:
             if il.find(e) is not None:
@@ -237,8 +261,9 @@ def main(filenames, lang='sk'):
     with closing(psycopg2.connect(conn_str)) as con:
         for f in filenames:
             print("Spracuvam subor '%s'..." % f)
-            data = process_file(f, lang=lang)
-            import2db(con, data)
+            with context(subor=os.path.basename(f)):
+                data = process_file(f, lang=lang)
+                import2db(con, data)
         con.commit()
     print("Hotovo.")
 
