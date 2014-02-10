@@ -381,10 +381,19 @@ def import2db(con, data):
                     sposob['rozsahHodin'],
                     sposob['rozsahZaObdobie']
                 ))
+            
+            cur.execute('''INSERT INTO infolist_verzia_literatura
+              (infolist_verzia, bib_id, poradie)
+              SELECT %s, bib_id, row_number() over ()
+              FROM literatura_pre_import_predmetov
+              WHERE kod_predmetu = %s''',
+              (infolist_verzia_id, d['skratka']))
 
             cur.execute('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
-                    zamknute) VALUES (%s, %s, %s) RETURNING id''',
-                    (infolist_verzia_id, True, False))
+                    zamknute, povodny_kod_predmetu)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id''',
+                    (infolist_verzia_id, True, False, d['kod']))
             infolist_id = cur.fetchone()[0]
             
             predmet_id = vytvor_alebo_najdi_predmet(d['kod'], d['skratka'])
