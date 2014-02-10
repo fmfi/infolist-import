@@ -301,8 +301,8 @@ def import2db(con, data):
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
                 pocet_kreditov, fakulta, podmienujuce_predmety,
-                vylucujuce_predmety) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                vylucujuce_predmety, potrebny_jazyk) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -316,6 +316,7 @@ def import2db(con, data):
                     'FMFI',
                     u' '.join(podm_s_idckami),
                     u' '.join(vyluc_s_idckami),
+                    'sk_en'
                 ))
             infolist_verzia_id = cur.fetchone()[0]
             
@@ -328,7 +329,7 @@ def import2db(con, data):
             cur.execute('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, nazov_predmetu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
-                    strucna_osnova, potrebny_jazyk) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+                    strucna_osnova) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
                     (
                      infolist_verzia_id,
                      "sk",
@@ -337,7 +338,6 @@ def import2db(con, data):
                      d['_Z_'],
                      d['_C_'],
                      d['_SO_'],
-                     None,
                     ))
 
             poradie = 1
