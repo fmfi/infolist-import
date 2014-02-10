@@ -82,6 +82,40 @@ def parse_formula(s):
     raise ValueError('Zle uzatvorkovany vyraz')
   return tokens2
 
+def html_to_text(e):
+  def flatten_inline(e):
+    x = u''
+    if e.text:
+      x += e.text
+    for child in e:
+      x += flatten(child)
+    if e.tail:
+      x += e.tail
+    return x.strip()
+  
+  ret = u''
+  lastmode = None
+  for child in e:
+    if child.tag == 'p':
+      inline = flatten_inline(child)
+      if inline.startswith('-'):
+        mode = 'ul'
+      elif re.match(r'^\d+\.', inline):
+        mode = 'ol'
+      else:
+        mode = 'p'
+      if mode == 'ul' and lastmode == 'ul':
+        ret += u'\n'
+      elif mode == 'ol' and lastmode == 'ol':
+        ret += u'\n'
+      else:
+        ret += u'\n\n'
+      ret += inline
+      lastmode = mode
+    else:
+      raise ValueError('Unsupported tag')
+  return ret.strip()
+
 def process_file(filename, lang='sk'):
     xmldoc = ET.parse(filename)
     root = xmldoc.getroot()
@@ -114,7 +148,7 @@ def process_file(filename, lang='sk'):
                     if e == '_VH_':
                         d[e] = il.find(e).findtext('texty/p')
                     else:
-                        d[e] = ET.tostring(il.find(e).find('texty/*'))
+                        d[e] = html_to_text(il.find(e).find('texty'))
                 elif e == 'vyucujuciAll':
                     d[e] = []
                     for vyucujuci in il.find(e).findall('vyucujuci'):
