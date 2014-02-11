@@ -249,7 +249,7 @@ def process_file(filename, lang='sk'):
 
     return data
 
-def import2db(con, data):
+def import2db(con, data, user=None):
     """ import do cistej db"""
     def vytvor_alebo_najdi_predmet(kod_predmetu, skratka=None):
       with closing(con.cursor()) as cur:
@@ -300,9 +300,10 @@ def import2db(con, data):
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
+                modifikoval, hromadna_zmena,
                 pocet_kreditov, fakulta, podmienujuce_predmety,
                 vylucujuce_predmety, potrebny_jazyk) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -312,6 +313,8 @@ def import2db(con, data):
                     hodnotenia['E'],
                     hodnotenia['FX'],
                     datetime.datetime.strptime(d['datumSchvalenia'],"%d.%m.%Y"),
+                    user,
+                    True, # hromadna zmena
                     d['kredit'],
                     'FMFI',
                     u' '.join(podm_s_idckami),
@@ -401,14 +404,21 @@ def import2db(con, data):
             cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
                            VALUES (%s, %s)''', (predmet_id, infolist_id))
 
-def main(filenames, lang='sk'):
+def main(filenames, lang='sk', user=None):
     with open(os.path.expanduser('~/.akreditacia.conn'), 'r') as f:
       conn_str = f.read()
     with closing(psycopg2.connect(conn_str)) as con:
+        if user != None:
+          with con.cursor() as cur:
+            cur.execute('SELECT id FROM osoba WHERE login = %s', (user,))
+            row = cur.fetchone()
+            if row == None:
+              raise ValueError('Pouzivatel s loginom {} neexistuje'.format(user))
+            user = row[0]
         for f in filenames:
             with context(subor=os.path.basename(f)):
                 data = process_file(f, lang=lang)
-                import2db(con, data)
+                import2db(con, data, user=user)
         con.commit()
     print("Hotovo.")
 
@@ -420,10 +430,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Coverts AIS XMLs into HTMLs.')
     parser.add_argument('input_path', metavar='input-path', help='path to input XMLs')
     parser.add_argument('--lang', dest='lang', nargs='?', default='sk', help='language')
+    parser.add_argument('--user', help='user who makes the changes')
 
     args = parser.parse_args()
 
     xml_path = os.path.join(args.input_path, '*.xml')
     filenames = glob.glob(xml_path)
-    main(filenames, lang=args.lang)
+    main(filenames, lang=args.lang, user=args.user)
 
