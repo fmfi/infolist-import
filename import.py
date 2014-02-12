@@ -302,8 +302,9 @@ def import2db(con, data, user=None):
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
                 modifikoval, hromadna_zmena,
                 pocet_kreditov, fakulta, podmienujuce_predmety,
-                vylucujuce_predmety, potrebny_jazyk) VALUES
-                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                odporucane_predmety, vylucujuce_predmety, potrebny_jazyk,
+                treba_zmenit_kod, predpokladany_semester) VALUES
+                (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
                 (
                     d['vahaSkusky'],
                     hodnotenia['A'],
@@ -318,8 +319,11 @@ def import2db(con, data, user=None):
                     d['kredit'],
                     'FMFI',
                     u' '.join(podm_s_idckami),
+                    '',
                     u' '.join(vyluc_s_idckami),
-                    'sk_en'
+                    'sk_en',
+                    False,
+                    d['kodSemesterStudPlan']
                 ))
             infolist_verzia_id = cur.fetchone()[0]
             
