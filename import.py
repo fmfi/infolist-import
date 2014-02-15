@@ -260,9 +260,11 @@ def import2db(con, data, user):
         if row:
           return row[0]
         else:
-          cur.execute('''INSERT INTO predmet (kod_predmetu, skratka) VALUES (%s, %s)
+          cur.execute('''INSERT INTO predmet (kod_predmetu, skratka,
+                        povodny_kod, povodna_skratka)
+                      VALUES (%s, %s, %s, %s)
                       RETURNING id''',
-                      (kod_predmetu, skratka))
+                      (kod_predmetu, skratka, kod_predmetu, skratka))
           return cur.fetchone()[0]
     with closing(con.cursor()) as cur:
         for d in data:
