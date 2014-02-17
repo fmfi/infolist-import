@@ -335,6 +335,12 @@ def import2db(con, data, user):
                 (infolist_verzia, predmet) VALUES (%s, %s)''',
                 (infolist_verzia_id, predmet_id))
 
+            if d['_C_']:
+              vysledky_vzdelavania = u'''Tento obsah bol automaticky importovaný z položky "ciele predmetu", je potrebné ho zmeniť podľa požiadaviek na "výsledky vzdelávania"!\n\n'''
+              vysledky_vzdelavania += d['_C_']
+            else:
+              vysledky_vzdelavania = ''
+
             cur.execute('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, nazov_predmetu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
@@ -345,7 +351,7 @@ def import2db(con, data, user):
                      d['nazov'],
                      d['_P_'],
                      d['_Z_'],
-                     d['_C_'],
+                     vysledky_vzdelavania,
                      d['_SO_'],
                     ))
 
