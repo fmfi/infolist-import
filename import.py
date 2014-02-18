@@ -269,12 +269,22 @@ def import2db(con, data, user):
     with closing(con.cursor()) as cur:
         for d in data:
             # checkni duplikaty
-            cur.execute('SELECT 1 FROM predmet WHERE kod_predmetu=%s',
-                    (d['kod'],))
+            cur.execute('''
+              SELECT 1
+              FROM predmet p
+              WHERE kod_predmetu=%s
+              AND EXISTS (
+                SELECT infolist
+                FROM predmet_infolist pi
+                WHERE pi.predmet = p.id
+              )
+              ''',
+              (d['kod'],))
             is_duplicate = cur.fetchone() != None
             if is_duplicate:
-                warn(u"Duplikovany zaznam pre predmet %s" % d['kod'])
+                warn(u"Infolist pre predmet %s uz existuje" % d['kod'])
                 continue
+            warn('Vytvaram infolist pre predmet %s' % d['kod'])
 
             hodnotenia = {}
             for hodn in ['A', 'B', 'C', 'D', 'E', 'FX']:
