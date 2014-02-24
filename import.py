@@ -249,7 +249,7 @@ def process_file(filename, lang='sk'):
 
     return data
 
-def import2db(con, data, user):
+def import2db(con, data, user, iba_kody=None):
     """ import do cistej db"""
     def vytvor_alebo_najdi_predmet(kod_predmetu, skratka=None):
       with closing(con.cursor()) as cur:
@@ -268,6 +268,10 @@ def import2db(con, data, user):
           return cur.fetchone()[0]
     with closing(con.cursor()) as cur:
         for d in data:
+            if iba_kody != None:
+              if not iba_kody.match(d['kod']):
+                warn(u'Preskakujem import infolistu pre predmet {}, lebo nematchuje regex'.format(d['kod']))
+                continue
             # checkni duplikaty
             cur.execute('''
               SELECT 1
@@ -426,7 +430,7 @@ def import2db(con, data, user):
             cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
                            VALUES (%s, %s)''', (predmet_id, infolist_id))
 
-def main(filenames, user, lang='sk'):
+def main(filenames, user, iba_kody=None, lang='sk'):
     with open(os.path.expanduser('~/.akreditacia.conn'), 'r') as f:
       conn_str = f.read()
     with closing(psycopg2.connect(conn_str)) as con:
@@ -439,7 +443,7 @@ def main(filenames, user, lang='sk'):
         for f in filenames:
             with context(subor=os.path.basename(f)):
                 data = process_file(f, lang=lang)
-                import2db(con, data, user)
+                import2db(con, data, user, iba_kody=iba_kody)
         con.commit()
     print("Hotovo.")
 
@@ -451,11 +455,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Coverts AIS XMLs into HTMLs.')
     parser.add_argument('input_path', metavar='input-path', help='path to input XMLs')
     parser.add_argument('--lang', dest='lang', nargs='?', default='sk', help='language')
+    parser.add_argument('--iba-kody', dest='iba_kody', metavar='kod',
+      help='importujme iba IL pre predmety s kodom matchujucim tento regularny vyraz')
     parser.add_argument('user', help='user who makes the changes')
 
     args = parser.parse_args()
 
     xml_path = os.path.join(args.input_path, '*.xml')
     filenames = glob.glob(xml_path)
-    main(filenames, args.user, lang=args.lang)
+    iba_kody = None
+    if args.iba_kody:
+      iba_kody = re.compile(args.iba_kody)
+    
+    main(filenames, args.user, iba_kody=iba_kody, lang=args.lang)
 
