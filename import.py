@@ -15,6 +15,7 @@ except ImportError:
 import re
 import sys
 import glob
+import os
 import os.path
 import psycopg2
 from contextlib import closing
@@ -134,7 +135,8 @@ def process_file(filename, lang='sk'):
     # vid ciselnik druh_cinnosti
     map_sposobVyucby = {u'Prednáška': 'P', u'Cvičenie': 'C', u'Samostatná práca': 'D',
       u'Kurz': 'K', u'Iná': 'I', u'Práce v teréne': 'T', u'Seminár': 'S',
-      u'Laboratórne cvičenie': 'L', u'Prax': 'X', u'sústredenie': 'U'}
+      u'Laboratórne cvičenie': 'L', u'Prax': 'X', u'sústredenie': 'U',
+      u'Exkurzia': 'E', u'Prednáška+Seminár': 'R'}
 
     data = []
 
@@ -159,6 +161,11 @@ def process_file(filename, lang='sk'):
                         })
                 elif e == 'hodnoteniaPredmetu':
                     d['celkovyPocetHodnotenychStudentov'] = il.find(e).find('celkovyPocetHodnotenychStudentov').text
+                    celk = il.find(e).find('celkovyPocetVsetkychHodnoteni')
+                    if celk is not None:
+                      d['celkovyPocetVsetkychHodnoteni'] = celk.text
+                    else:
+                      d['celkovyPocetVsetkychHodnoteni'] = d['celkovyPocetHodnotenychStudentov']
                     d['hodnoteniaPredmetu'] = {}
                     s = 0
                     for hodnotenie in il.find(e).findall('hodnoteniePredmetu'):
@@ -168,7 +175,7 @@ def process_file(filename, lang='sk'):
                             'percentualneVyjadrenieZCelkPoctuHodnoteni': hodnotenie.find('percentualneVyjadrenieZCelkPoctuHodnoteni').text
                         }
                         s += int(hodnotenie.find('pocetHodnoteni').text)
-                    assert(s == int(d['celkovyPocetHodnotenychStudentov']))
+                    assert(s == int(d['celkovyPocetVsetkychHodnoteni']))
                 elif e == 'metodyStudia':
                     metodyStudia = il.find(e).findall('metodaStudia')
                     assert(len(metodyStudia) == 1)
@@ -442,6 +449,10 @@ def main(filenames, user, iba_kody=None, lang='sk', dry_run=False):
           user = row[0]
         for f in filenames:
             with context(subor=os.path.basename(f)):
+                si = os.stat(f)
+                if si.st_size == 0:
+                  warn('Prekakujem prazdny subor {}'.format(os.path.basename(f)))
+                  continue
                 data = process_file(f, lang=lang)
                 import2db(con, data, user, iba_kody=iba_kody, dry_run=dry_run)
         if not dry_run:
