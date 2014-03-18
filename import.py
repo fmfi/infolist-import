@@ -269,7 +269,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
     with closing(con.cursor()) as cur:
         def cur_update(sql, params):
           if dry_run:
-            print sql, params
+            print(sql, params)
           else:
             return cur.execute(sql, params)
         for d in data:
