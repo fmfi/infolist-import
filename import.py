@@ -267,11 +267,6 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
                       (kod_predmetu, skratka, kod_predmetu, skratka))
           return cur.fetchone()[0]
     with closing(con.cursor()) as cur:
-        def cur_update(sql, params):
-          if dry_run:
-            print(sql, params)
-          else:
-            return cur.execute(sql, params)
         for d in data:
             if iba_kody != None:
               if not iba_kody.match(d['kod']):
@@ -317,7 +312,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
             podm_s_idckami, podm_predmety = prepare_formula(d['podmienujucePredmety'])
             vyluc_s_idckami, vyluc_predmety = prepare_formula(d['vylucujucePredmety'])
             
-            cur_update('''INSERT INTO infolist_verzia (
+            cur.execute('''INSERT INTO infolist_verzia (
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
@@ -350,7 +345,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
             
             suvisiace_predmety = set.union(podm_predmety, vyluc_predmety)
             for predmet_id in suvisiace_predmety:
-              cur_update('''INSERT INTO infolist_verzia_suvisiace_predmety
+              cur.execute('''INSERT INTO infolist_verzia_suvisiace_predmety
                 (infolist_verzia, predmet) VALUES (%s, %s)''',
                 (infolist_verzia_id, predmet_id))
 
@@ -360,7 +355,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
             else:
               vysledky_vzdelavania = ''
 
-            cur_update('''INSERT INTO infolist_verzia_preklad
+            cur.execute('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, nazov_predmetu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
                     strucna_osnova) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
@@ -392,20 +387,20 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
                 vyucujuci_id = ids[0]
                 
                 if vyucujuci_id not in vlozeny:
-                    cur_update('''INSERT INTO infolist_verzia_vyucujuci
+                    cur.execute('''INSERT INTO infolist_verzia_vyucujuci
                             (infolist_verzia, poradie, osoba)
                             VALUES (%s, %s, %s)''',
                             (infolist_verzia_id, poradie, vyucujuci_id))
                     vlozeny.add(vyucujuci_id)
                     poradie += 1
                 
-                cur_update('''INSERT INTO infolist_verzia_vyucujuci_typ
+                cur.execute('''INSERT INTO infolist_verzia_vyucujuci_typ
                         (infolist_verzia, osoba, typ_vyucujuceho)
                         VALUES (%s, %s, %s)''',
                         (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
 
             for sposob in d['sposoby']:
-                cur_update('''INSERT INTO infolist_verzia_cinnosti
+                cur.execute('''INSERT INTO infolist_verzia_cinnosti
                 (infolist_verzia, metoda_vyucby, druh_cinnosti,
                 pocet_hodin, za_obdobie) VALUES (%s, %s, %s, %s, %s)''',
                 (
@@ -416,14 +411,14 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
                     sposob['rozsahZaObdobie']
                 ))
             
-            cur_update('''INSERT INTO infolist_verzia_literatura
+            cur.execute('''INSERT INTO infolist_verzia_literatura
               (infolist_verzia, bib_id, poradie)
               SELECT %s, bib_id, row_number() over ()
               FROM literatura_pre_import_predmetov
               WHERE kod_predmetu = %s''',
               (infolist_verzia_id, d['skratka']))
 
-            cur_update('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
+            cur.execute('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
                     zamknute, zamkol, povodny_kod_predmetu)
                     VALUES (%s, %s, now(), %s, %s)
                     RETURNING id''',
@@ -432,7 +427,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
             
             predmet_id = vytvor_alebo_najdi_predmet(d['kod'], d['skratka'])
             
-            cur_update('''INSERT INTO predmet_infolist(predmet, infolist)
+            cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
                            VALUES (%s, %s)''', (predmet_id, infolist_id))
 
 def main(filenames, user, iba_kody=None, lang='sk', dry_run=False):
