@@ -249,7 +249,7 @@ def process_file(filename, lang='sk'):
 
     return data
 
-def import2db(con, data, user, iba_kody=None):
+def import2db(con, data, user, iba_kody=None, dry_run=False):
     """ import do cistej db"""
     def vytvor_alebo_najdi_predmet(kod_predmetu, skratka=None):
       with closing(con.cursor()) as cur:
@@ -267,6 +267,11 @@ def import2db(con, data, user, iba_kody=None):
                       (kod_predmetu, skratka, kod_predmetu, skratka))
           return cur.fetchone()[0]
     with closing(con.cursor()) as cur:
+        def cur_update(sql, params):
+          if dry_run:
+            print sql, params
+          else:
+            return cur.execute(sql, params)
         for d in data:
             if iba_kody != None:
               if not iba_kody.match(d['kod']):
@@ -312,7 +317,7 @@ def import2db(con, data, user, iba_kody=None):
             podm_s_idckami, podm_predmety = prepare_formula(d['podmienujucePredmety'])
             vyluc_s_idckami, vyluc_predmety = prepare_formula(d['vylucujucePredmety'])
             
-            cur.execute('''INSERT INTO infolist_verzia (
+            cur_update('''INSERT INTO infolist_verzia (
                 podm_absol_percenta_skuska, hodnotenia_a_pocet,
                 hodnotenia_b_pocet, hodnotenia_c_pocet, hodnotenia_d_pocet,
                 hodnotenia_e_pocet, hodnotenia_fx_pocet, modifikovane,
@@ -345,7 +350,7 @@ def import2db(con, data, user, iba_kody=None):
             
             suvisiace_predmety = set.union(podm_predmety, vyluc_predmety)
             for predmet_id in suvisiace_predmety:
-              cur.execute('''INSERT INTO infolist_verzia_suvisiace_predmety
+              cur_update('''INSERT INTO infolist_verzia_suvisiace_predmety
                 (infolist_verzia, predmet) VALUES (%s, %s)''',
                 (infolist_verzia_id, predmet_id))
 
@@ -355,7 +360,7 @@ def import2db(con, data, user, iba_kody=None):
             else:
               vysledky_vzdelavania = ''
 
-            cur.execute('''INSERT INTO infolist_verzia_preklad
+            cur_update('''INSERT INTO infolist_verzia_preklad
                     (infolist_verzia, jazyk_prekladu, nazov_predmetu, podm_absol_priebezne,
                     podm_absol_skuska, vysledky_vzdelavania,
                     strucna_osnova) VALUES (%s, %s, %s, %s, %s, %s, %s)''',
@@ -387,20 +392,20 @@ def import2db(con, data, user, iba_kody=None):
                 vyucujuci_id = ids[0]
                 
                 if vyucujuci_id not in vlozeny:
-                    cur.execute('''INSERT INTO infolist_verzia_vyucujuci
+                    cur_update('''INSERT INTO infolist_verzia_vyucujuci
                             (infolist_verzia, poradie, osoba)
                             VALUES (%s, %s, %s)''',
                             (infolist_verzia_id, poradie, vyucujuci_id))
                     vlozeny.add(vyucujuci_id)
                     poradie += 1
                 
-                cur.execute('''INSERT INTO infolist_verzia_vyucujuci_typ
+                cur_update('''INSERT INTO infolist_verzia_vyucujuci_typ
                         (infolist_verzia, osoba, typ_vyucujuceho)
                         VALUES (%s, %s, %s)''',
                         (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
 
             for sposob in d['sposoby']:
-                cur.execute('''INSERT INTO infolist_verzia_cinnosti
+                cur_update('''INSERT INTO infolist_verzia_cinnosti
                 (infolist_verzia, metoda_vyucby, druh_cinnosti,
                 pocet_hodin, za_obdobie) VALUES (%s, %s, %s, %s, %s)''',
                 (
@@ -411,14 +416,14 @@ def import2db(con, data, user, iba_kody=None):
                     sposob['rozsahZaObdobie']
                 ))
             
-            cur.execute('''INSERT INTO infolist_verzia_literatura
+            cur_update('''INSERT INTO infolist_verzia_literatura
               (infolist_verzia, bib_id, poradie)
               SELECT %s, bib_id, row_number() over ()
               FROM literatura_pre_import_predmetov
               WHERE kod_predmetu = %s''',
               (infolist_verzia_id, d['skratka']))
 
-            cur.execute('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
+            cur_update('''INSERT INTO infolist (posledna_verzia, import_z_aisu,
                     zamknute, zamkol, povodny_kod_predmetu)
                     VALUES (%s, %s, now(), %s, %s)
                     RETURNING id''',
@@ -427,10 +432,10 @@ def import2db(con, data, user, iba_kody=None):
             
             predmet_id = vytvor_alebo_najdi_predmet(d['kod'], d['skratka'])
             
-            cur.execute('''INSERT INTO predmet_infolist(predmet, infolist)
+            cur_update('''INSERT INTO predmet_infolist(predmet, infolist)
                            VALUES (%s, %s)''', (predmet_id, infolist_id))
 
-def main(filenames, user, iba_kody=None, lang='sk'):
+def main(filenames, user, iba_kody=None, lang='sk', dry_run=False):
     with open(os.path.expanduser('~/.akreditacia.conn'), 'r') as f:
       conn_str = f.read()
     with closing(psycopg2.connect(conn_str)) as con:
@@ -443,9 +448,13 @@ def main(filenames, user, iba_kody=None, lang='sk'):
         for f in filenames:
             with context(subor=os.path.basename(f)):
                 data = process_file(f, lang=lang)
-                import2db(con, data, user, iba_kody=iba_kody)
-        con.commit()
-    print("Hotovo.")
+                import2db(con, data, user, iba_kody=iba_kody, dry_run=dry_run)
+        if not dry_run:
+          con.commit()
+    if not dry_run:
+      print("Hotovo.")
+    else:
+      print("Hotovo. Kedze --dry-run, tak necommitujeme...")
 
 
 if __name__ == "__main__":
@@ -458,6 +467,7 @@ if __name__ == "__main__":
     parser.add_argument('--iba-kody', dest='iba_kody', metavar='kod',
       help='importujme iba IL pre predmety s kodom matchujucim tento regularny vyraz')
     parser.add_argument('user', help='user who makes the changes')
+    parser.add_argument('--dry-run', help='do not commit the changes into DB', action='store_true')
 
     args = parser.parse_args()
 
@@ -467,5 +477,5 @@ if __name__ == "__main__":
     if args.iba_kody:
       iba_kody = re.compile(args.iba_kody)
     
-    main(filenames, args.user, iba_kody=iba_kody, lang=args.lang)
+    main(filenames, args.user, iba_kody=iba_kody, lang=args.lang, dry_run=args.dry_run)
 
