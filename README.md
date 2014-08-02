@@ -59,5 +59,7 @@ Kde `hrasko47` je login administratora systemu (zaznaci sa ako osoba vykonavajuc
 > Poznámka: Ak cheme importovať iba niektoré predmety, môžme zadať regulárny výraz,
 > podľa ktorého sa majú filtrovať kódy predmetov, do argumentu `--iba-kody`.
 
+
+
 > Poznámka: Ak chceme iba vidieť, čo by sa robilo bez reálneho importu dát, môžme použiť
 > argument `--dry-run`, ktorý spôsobí, že sa na konci necommitnú dáta.
