@@ -178,7 +178,9 @@ def process_file(filename, lang='sk'):
                     assert(s == int(d['celkovyPocetVsetkychHodnoteni']))
                 elif e == 'metodyStudia':
                     metodyStudia = il.find(e).findall('metodaStudia')
-                    assert(len(metodyStudia) == 1)
+                    assert len(metodyStudia) > 0
+                    if len(metodyStudia) != 1:
+                        warn(u'Predmet %s ma viac metod studia, importujem iba prvu')
                     d['metodaStudia'] = map_metodyStudia[metodyStudia[0].text]
                 else:
                     d[e] = il.find(e).text
