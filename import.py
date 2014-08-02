@@ -180,7 +180,7 @@ def process_file(filename, lang='sk'):
                     metodyStudia = il.find(e).findall('metodaStudia')
                     assert len(metodyStudia) > 0
                     if len(metodyStudia) != 1:
-                        warn(u'Predmet %s ma viac metod studia, importujem iba prvu')
+                        warn(u'Predmet %s ma viac metod studia, importujem iba prvu' % d['kod'])
                     d['metodaStudia'] = map_metodyStudia[metodyStudia[0].text]
                 else:
                     d[e] = il.find(e).text
