@@ -3,7 +3,7 @@
 ## Inštalácia
 
 ```bash
-sudo apt-get install libxml2-dev libxslt-dev zlib1g-dev
+sudo apt-get install python-dev libpq-dev python-virtualenv libxml2-dev libxslt-dev zlib1g-dev
 
 cd /home/ka
 git clone https://github.com/fmfi/infolist-import.git
