@@ -54,12 +54,11 @@ cd /home/ka/ais-infolisty
 ./import.py /home/ka/ais-infolisty-data/FMFI/xml_files_sk/ hrasko47
 ```
 
-Kde `hrasko47` je login administratora systemu (zaznaci sa ako osoba vykonavajuca zmeny).
+> `hrasko47` nahradme loginom administratora systemu
+> (zaznaci sa ako osoba vykonavajuca zmeny).
 
-> Poznámka: Ak cheme importovať iba niektoré predmety, môžme zadať regulárny výraz,
-> podľa ktorého sa majú filtrovať kódy predmetov, do argumentu `--iba-kody`.
+Ak cheme importovať iba niektoré predmety, môžme zadať regulárny výraz,
+podľa ktorého sa majú filtrovať kódy predmetov, do argumentu `--iba-kody`.
 
-
-
-> Poznámka: Ak chceme iba vidieť, čo by sa robilo bez reálneho importu dát, môžme použiť
-> argument `--dry-run`, ktorý spôsobí, že sa na konci necommitnú dáta.
+Ak chceme iba vidieť, čo by sa robilo bez reálneho importu dát, môžme použiť
+argument `--dry-run`, ktorý spôsobí, že sa na konci necommitnú dáta.
