@@ -46,7 +46,11 @@ def warn(text):
   sys.stderr.write('\n')
 
 def kod2skratka(kod):
-  return re.match(r'^[^/]+/(.+)/[^/]+$', kod).group(1)
+  print(kod)
+  skratka = re.match(r'^[^/]+/([^/]+)/', kod).group(1)
+  print(kod,'=>',skratka)
+  return skratka
+  #return re.match(r'^[^/]+/(.+)/[^/]+$', kod).group(1)
 
 def parse_formula(s):
   tokens = []
@@ -127,7 +131,7 @@ def process_file(filename, lang='sk'):
     elements = ('kod', 'skratka', 'nazov', 'kredit', 'sposobUkoncenia', 'sposobVyucby',
                 'rozsahTyzdenny', 'rozsahSemestranly', 'obdobie', 'rokRocnikStudPlan',
                 'kodSemesterStudPlan', 'jazyk', 'podmienujucePredmety', 'metodyStudia',
-                'vyucujuciAll', 'zabezpecuju', 'datumSchvalenia', '_VH_', '_SO_', '_C_',
+                'vyucujuciAll', 'zabezpecuju', 'datumSchvalenia', '_VH_', '_SO_', '_VV_',
                 '_Z_', '_P_', '_O_', '_S_', 'vylucujucePredmety',
                 'hodnoteniaPredmetu')
 
@@ -136,7 +140,11 @@ def process_file(filename, lang='sk'):
     map_sposobVyucby = {u'Prednáška': 'P', u'Cvičenie': 'C', u'Samostatná práca': 'D',
       u'Kurz': 'K', u'Iná': 'I', u'Práce v teréne': 'T', u'Seminár': 'S',
       u'Laboratórne cvičenie': 'L', u'Prax': 'X', u'sústredenie': 'U',
-      u'Exkurzia': 'E', u'Prednáška+Seminár': 'R'}
+      u'Exkurzia': 'E', u'Prednáška+Seminár': 'R',
+      u'prednáška': 'P', u'cvičenie': 'C', u'samostatná práca': 'D',
+      u'kurz': 'K', u'iná': 'I', u'práce v teréne': 'T', u'seminár': 'S',
+      u'laboratórne cvičenie': 'L', u'prax': 'X', 
+      u'exkurzia': 'E', u'prednáška+seminár': 'R'}
 
     data = []
 
@@ -222,12 +230,15 @@ def process_file(filename, lang='sk'):
                   if rozsahSemestranly == None:
                     rozsahSemestranly = [None] * len(sposobVyucby)
                   for i in range(len(sposobVyucby)):
-                      if rozsahTyzdenny[i] != None:
+                      if (i < len(rozsahTyzdenny)) and (rozsahTyzdenny[i] != None):
                         hodin = rozsahTyzdenny[i]
                         za_obdobie = 'T'
-                      else:
+                      elif (i < len(rozsahSemestranly)):
                         hodin = rozsahSemestranly[i]
                         za_obdobie = 'S'
+                      else:
+                        hodin = 0
+                        za_obdobie = 'T'
                       if re.match('^\d+[st]$', hodin):
                         warn(u'Pocet hodin %s je so suffixom, konvertujem' % hodin)
                         za_obdobie = hodin[-1].upper()
@@ -310,7 +321,7 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
               idform = []
               referenced = set()
               for token in tokens:
-                if token in ('(', ')', 'AND', 'OR'):
+                if token in ('(', ')', 'AND', 'OR', 'a', 'alebo'):
                   idform.append(token)
                 else:
                   token_id = vytvor_alebo_najdi_predmet(token)
@@ -358,9 +369,14 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
                 (infolist_verzia, predmet) VALUES (%s, %s)''',
                 (infolist_verzia_id, predmet_id))
 
-            if d['_C_']:
-              vysledky_vzdelavania = u'''Tento obsah bol automaticky importovaný z položky "ciele predmetu", je potrebné ho zmeniť podľa požiadaviek na "výsledky vzdelávania"!\n\n'''
-              vysledky_vzdelavania += d['_C_']
+            #if d['_C_']:
+            #  vysledky_vzdelavania = u'''Tento obsah bol automaticky importovaný z položky "ciele predmetu", je potrebné ho zmeniť podľa požiadaviek na "výsledky vzdelávania"!\n\n'''
+            #  vysledky_vzdelavania += d['_C_']
+            #else:
+            #  vysledky_vzdelavania = ''
+
+            if d['_VV_']:
+              vysledky_vzdelavania = d['_VV_']
             else:
               vysledky_vzdelavania = ''
 
@@ -398,11 +414,18 @@ def import2db(con, data, user, iba_kody=None, dry_run=False):
                 if vyucujuci_id not in vlozeny:
                     cur.execute('''INSERT INTO infolist_verzia_vyucujuci
                             (infolist_verzia, poradie, osoba)
-                            VALUES (%s, %s, %s)''',
+                            VALUES (%s, %s, %s)
+                            ''',
                             (infolist_verzia_id, poradie, vyucujuci_id))
                     vlozeny.add(vyucujuci_id)
                     poradie += 1
-                
+
+                # zabranit potencialnym duplikatom    
+                cur.execute('''DELETE FROM infolist_verzia_vyucujuci_typ where
+                        infolist_verzia=%s and osoba=%s 
+                        and typ_vyucujuceho=%s''',
+                        (infolist_verzia_id, vyucujuci_id, vyucujuci['typ']))
+    
                 cur.execute('''INSERT INTO infolist_verzia_vyucujuci_typ
                         (infolist_verzia, osoba, typ_vyucujuceho)
                         VALUES (%s, %s, %s)''',
